@@ -1,14 +1,16 @@
 import React from 'react';
 import { 
   Bold, Italic, Code, List, Sparkles, Hash, 
-  Minimize2, Maximize2, Eraser, Wand2
+  Minimize2, Maximize2, Eraser, Wand2, Type
 } from 'lucide-react';
-import { AiAction } from '../types';
+import { AiAction, FontTheme } from '../types';
 
 interface EditorToolbarProps {
   onInsertSyntax: (syntax: string) => void;
   onAiAction: (action: AiAction) => void;
   onClear: () => void;
+  onThemeChange: (theme: FontTheme) => void;
+  currentTheme: FontTheme;
   isAiLoading: boolean;
   hasText: boolean;
 }
@@ -17,6 +19,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onInsertSyntax,
   onAiAction,
   onClear,
+  onThemeChange,
+  currentTheme,
   isAiLoading,
   hasText
 }) => {
@@ -41,6 +45,29 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           <button onClick={() => onInsertSyntax('list')} className={btnClass} title="List (-)">
             <List size={18} />
           </button>
+          
+          <div className="h-5 w-px bg-slate-200 mx-1" />
+          
+          <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
+            <button
+              onClick={() => onThemeChange(FontTheme.Serif)}
+              className={`px-2 py-1 rounded-md text-xs font-medium transition-all ${
+                currentTheme === FontTheme.Serif ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+              title="Serif Style (𝐀𝐁𝐂)"
+            >
+              Serif
+            </button>
+            <button
+              onClick={() => onThemeChange(FontTheme.Sans)}
+              className={`px-2 py-1 rounded-md text-xs font-medium transition-all ${
+                currentTheme === FontTheme.Sans ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+              title="Sans Style (𝗔𝗕𝗖)"
+            >
+              Sans
+            </button>
+          </div>
         </div>
         
         <button 

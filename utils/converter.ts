@@ -1,5 +1,5 @@
 import { CHAR_MAP } from '../constants';
-import { StyleType } from '../types';
+import { StyleType, FontTheme } from '../types';
 
 const convertChar = (char: string, type: StyleType): string => {
   if (type === StyleType.Strikethrough) {
@@ -12,17 +12,22 @@ const convertChar = (char: string, type: StyleType): string => {
 
   // Specific fix: simple italic numbers often lack full unicode support in some fonts/sets,
   // allowing them to remain normal guarantees readability.
-  if (type === StyleType.Italic && /[0-9]/.test(char)) return char;
+  if ((type === StyleType.Italic || type === StyleType.ItalicSans) && /[0-9]/.test(char)) return char;
 
   // @ts-ignore - We know mapped arrays exist for these types
   return CHAR_MAP[type][normalIndex] || char;
 };
 
 /**
- * Converts a string to the target style, preserving emoji sequences.
+ * Converts a string to the target style, preserving emoji sequences and handling Vietnamese characters.
  */
 export const convertString = (text: string, type: StyleType): string => {
-  const chars = [...text]; // Handle unicode surrogates
+  // 1. Normalize to NFD (Decomposition)
+  // This splits characters like "ê" into "e" + "^". 
+  // This allows us to bold the "e" base character so the word looks mostly bold, 
+  // rather than having "thin" letters scattered throughout.
+  const normalized = text.normalize('NFD');
+  const chars = [...normalized]; // Spread into array to handle surrogate pairs correctly
   let res = "";
 
   for (let i = 0; i < chars.length; i++) {
@@ -30,20 +35,37 @@ export const convertString = (text: string, type: StyleType): string => {
     const next = chars[i + 1];
 
     // Emoji Keycap Sequence Detection (e.g., 2️⃣)
-    // If a number/hash/star is followed by Variation Selector-16 (\uFE0F) or Keycap (\u20E3),
-    // we must NOT convert it, otherwise the keycap box breaks.
     if (/[0-9#*]/.test(char) && next && /[\uFE0F\u20E3]/.test(next)) {
       res += char;
       continue;
     }
+
+    // Vietnamese Correction:
+    // If a character is followed by a combining diacritic (U+0300-U+036F),
+    // do NOT convert it to a mathematical symbol. 
+    // Mathematical symbols (like 𝐢) often render poorly with combining marks (like acute accent).
+    // We skip this check for Strikethrough as it uses combining marks intentionally.
+    if (type !== StyleType.Strikethrough && next && /[\u0300-\u036f]/.test(next)) {
+      res += char;
+      continue;
+    }
+
+    // Note: We previously attempted to handle đ/Đ with combining strokes (U+0335),
+    // but this causes rendering artifacts (misaligned strokes) on many devices.
+    // We now allow đ/Đ to pass through as normal characters to ensure correct formatting.
 
     res += convertChar(char, type);
   }
   return res;
 };
 
-export const convertMarkdownToSocial = (input: string): string => {
+export const convertMarkdownToSocial = (input: string, theme: FontTheme = FontTheme.Sans): string => {
   let res = input;
+
+  // Determine styles based on theme
+  const boldStyle = theme === FontTheme.Sans ? StyleType.BoldSans : StyleType.Bold;
+  const italicStyle = theme === FontTheme.Sans ? StyleType.ItalicSans : StyleType.Italic;
+  const boldItalicStyle = theme === FontTheme.Sans ? StyleType.BoldItalicSans : StyleType.BoldItalic;
 
   // 1. Code Blocks (```code```) -> Monospace
   res = res.replace(/```([\s\S]*?)```/g, (_, p1) => {
@@ -57,17 +79,17 @@ export const convertMarkdownToSocial = (input: string): string => {
 
   // 3. Bold Italic (***text*** or ___text___)
   res = res.replace(/(\*\*\*|___)(.*?)\1/g, (_, __, p2) => {
-    return convertString(p2, StyleType.BoldItalic);
+    return convertString(p2, boldItalicStyle);
   });
 
   // 4. Bold (**text** or __text__)
   res = res.replace(/(\*\*|__)(.*?)\1/g, (_, __, p2) => {
-    return convertString(p2, StyleType.Bold);
+    return convertString(p2, boldStyle);
   });
 
   // 5. Italic (*text* or _text_)
   res = res.replace(/(\*|_)(.*?)\1/g, (_, __, p2) => {
-    return convertString(p2, StyleType.Italic);
+    return convertString(p2, italicStyle);
   });
 
   // 6. Strikethrough (~~text~~)
@@ -78,15 +100,10 @@ export const convertMarkdownToSocial = (input: string): string => {
   // 7. Headers (# Header)
   // Handles # through ######
   res = res.replace(/^(#{1,6})\s+(.*)$/gm, (_, hashes, content) => {
-    const isMajor = hashes.length <= 2; // # or ##
     // Clean internal markdown markers from the header title before bolding to avoid artifacts
     const cleanContent = content.replace(/(\*\*|__)/g, "");
-    const converted = convertString(cleanContent, StyleType.Bold);
+    const converted = convertString(cleanContent, boldStyle);
     
-    // Add a separator line for major headers to simulate a "block"
-    if (isMajor) {
-      return `${converted}\n━━━━━━━━━━━━━━━━`;
-    }
     return converted;
   });
 

@@ -5,7 +5,16 @@ export enum StyleType {
   BoldItalic = 'boldItalic',
   Monospace = 'monospace',
   Script = 'script',
-  Strikethrough = 'strikethrough'
+  Strikethrough = 'strikethrough',
+  // Sans Serif Variants
+  BoldSans = 'boldSans',
+  ItalicSans = 'italicSans',
+  BoldItalicSans = 'boldItalicSans'
+}
+
+export enum FontTheme {
+  Serif = 'serif',
+  Sans = 'sans'
 }
 
 export interface CharMap {
@@ -16,6 +25,9 @@ export interface CharMap {
   [StyleType.Monospace]: string[];
   [StyleType.Script]: string[];
   [StyleType.Strikethrough]: (char: string) => string;
+  [StyleType.BoldSans]: string[];
+  [StyleType.ItalicSans]: string[];
+  [StyleType.BoldItalicSans]: string[];
 }
 
 export enum AiAction {
